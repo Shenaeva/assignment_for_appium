@@ -16,6 +16,15 @@ public class CommonPage {
     private final SelenideElement skipAuthButton =
             $(By.id("com.vk.vkvideo:id/fast_login_tertiary_btn"));
 
+    private final SelenideElement enteringPhoneOrEmail =
+            $(By.id("com.vk.vkvideo:id/enter_email_or_phone"));
+
+    private final SelenideElement loginButton =
+            $(By.id("com.vk.vkvideo:id/login_btn"));
+
+    private final SelenideElement createAccount =
+            $(By.id("com.vk.vkvideo:id/create_account_btn"));
+
     public void skipAuthIfPresent() {
         WebDriver driver = getWebDriver();
 
