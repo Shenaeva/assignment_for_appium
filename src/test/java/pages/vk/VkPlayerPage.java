@@ -35,7 +35,6 @@ public class VkPlayerPage {
     private final SelenideElement fullscreenButton =
             $(By.id("com.vk.vkvideo:id/fullscreen"));
 
-    // системное окно шеринга
     private final SelenideElement shareSheetTitle =
             $(By.xpath("//*[contains(@text,'Поделиться')]"));
 
@@ -45,18 +44,40 @@ public class VkPlayerPage {
         }
     }
 
+    private final SelenideElement noInternetLayout =
+            $(By.id("com.vk.vkvideo:id/center_layout"));
+
+    private final SelenideElement noInternetTitle =
+            $(By.xpath("//android.widget.TextView[@resource-id='com.vk.vkvideo:id/title' and @text='Нет интернета — проверьте подключение']"));
+
+    private final SelenideElement loader =
+            $(By.id("com.vk.vkvideo:id/progress_view"));
+
     public String getCurrentProgressText() {
-        boolean controlsVisible = ensureControlsVisible();
-        if (!controlsVisible) {
-            throw new AssertionError("Не появились элементы управления видео");
+        WebDriver driver = getWebDriver();
+
+        for (int attempt = 0; attempt < 3; attempt++) {
+            boolean controlsVisible = ensureControlsVisible();
+            if (!controlsVisible) {
+                continue;
+            }
+
+            boolean timerVisible = WaitUtils.waitUntilVisible(driver, currentProgress, Duration.ofSeconds(2));
+            if (!timerVisible) {
+                continue;
+            }
+
+            try {
+                String text = currentProgress.getText();
+                if (!text.isBlank()) {
+                    return text;
+                }
+            } catch (Exception ignored) {
+                // оверлей успел скрыться между wait и getText
+            }
         }
 
-        boolean timerVisible = WaitUtils.waitUntilVisible(getWebDriver(), currentProgress, Duration.ofSeconds(5));
-        if (!timerVisible) {
-            throw new AssertionError("Не появился таймер воспроизведения");
-        }
-
-        return currentProgress.getText();
+        throw new AssertionError("Не удалось стабильно получить текст таймера воспроизведения");
     }
 
     public PlaybackState detectPlaybackState() {
@@ -64,9 +85,13 @@ public class VkPlayerPage {
         int beforeSeconds = extractCurrentSeconds(before);
 
         boolean progressed = WaitUtils.waitUntil(getWebDriver(), Duration.ofSeconds(8), d -> {
-            String after = getCurrentProgressText();
-            int afterSeconds = extractCurrentSeconds(after);
-            return afterSeconds > beforeSeconds;
+            try {
+                String after = getCurrentProgressText();
+                int afterSeconds = extractCurrentSeconds(after);
+                return afterSeconds > beforeSeconds;
+            } catch (Exception e) {
+                return false;
+            }
         });
 
         return progressed ? PlaybackState.PLAYING : PlaybackState.NOT_PLAYING;
@@ -75,12 +100,10 @@ public class VkPlayerPage {
     private boolean ensureControlsVisible() {
         WebDriver driver = getWebDriver();
 
-        // 1. Если элементы уже видны
-        if (areControlsVisible(driver)) {
+        if (areControlsVisible()) {
             return true;
         }
 
-        // 2. Один tap в свободную верхнюю зону видео
         if (driver instanceof AndroidDriver androidDriver) {
             WaitUtils.tapByCoordinates(
                     androidDriver,
@@ -89,16 +112,14 @@ public class VkPlayerPage {
             );
         }
 
-        // 3. Если вылез share sheet — закрыть
         if (shareSheetTitle.exists() && shareSheetTitle.isDisplayed() && driver instanceof AndroidDriver androidDriver) {
             androidDriver.pressKey(new KeyEvent(AndroidKey.BACK));
         }
 
-        // 4. Ожидание controls повторно
-        return WaitUtils.waitUntil(driver, Duration.ofSeconds(5), d -> areControlsVisible(d));
+        return WaitUtils.waitUntil(driver, Duration.ofSeconds(5), d -> areControlsVisible());
     }
 
-    private boolean areControlsVisible(WebDriver driver) {
+    private boolean areControlsVisible() {
         return (currentProgress.exists() && currentProgress.isDisplayed())
                 || (seekBar.exists() && seekBar.isDisplayed())
                 || (skipBackButton.exists() && skipBackButton.isDisplayed())
@@ -138,6 +159,54 @@ public class VkPlayerPage {
 
         return -1;
     }
+
+    public PlaybackState detectPlaybackStateForNegativeScenario() {
+        WebDriver driver = getWebDriver();
+
+        // 1. Явная плашка отсутствия интернета
+        boolean noInternetAppeared = WaitUtils.waitUntil(driver, Duration.ofSeconds(5), d -> isNoInternetErrorVisible());
+        if (noInternetAppeared) {
+            return PlaybackState.NOT_PLAYING;
+        }
+
+        // 2. Controls не появились — тоже негативный исход
+        boolean controlsVisible = ensureControlsVisible();
+        if (!controlsVisible) {
+            return PlaybackState.NOT_PLAYING;
+        }
+
+        // 3. Таймер не появился — тоже негативный исход
+        boolean timerVisible = WaitUtils.waitUntilVisible(driver, currentProgress, Duration.ofSeconds(3));
+        if (!timerVisible) {
+            return PlaybackState.NOT_PLAYING;
+        }
+
+        // 4. Таймер появился, но время не идет
+        String before = currentProgress.getText();
+        int beforeSeconds = extractCurrentSeconds(before);
+
+        boolean progressed = WaitUtils.waitUntil(driver, Duration.ofSeconds(6), d -> {
+            if (!currentProgress.exists() || !currentProgress.isDisplayed()) {
+                return false;
+            }
+            String after = currentProgress.getText();
+            int afterSeconds = extractCurrentSeconds(after);
+            return afterSeconds > beforeSeconds;
+        });
+
+        return progressed ? PlaybackState.PLAYING : PlaybackState.NOT_PLAYING;
+    }
+
+    public boolean isNoInternetErrorVisible() {
+        return (noInternetLayout.exists() && noInternetLayout.isDisplayed())
+                || (noInternetTitle.exists() && noInternetTitle.isDisplayed());
+    }
+
+    public boolean isLoaderVisible() {
+        return loader.exists() && loader.isDisplayed();
+    }
+
+
 
     public enum PlaybackState {
         PLAYING,

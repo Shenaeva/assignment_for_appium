@@ -8,7 +8,7 @@ import pages.vk.CommonPage;
 import pages.vk.VkHomePage;
 import pages.vk.VkPlayerPage;
 
-public class VkVideoPlaybackTest extends TestBase {
+public class VkVideoPlaybackPositiveTest extends TestBase {
 
     private final CommonPage commonPage = new CommonPage();
     private final VkHomePage vkHomePage = new VkHomePage();
@@ -22,6 +22,11 @@ public class VkVideoPlaybackTest extends TestBase {
         vkPlayerPage.clickPlayIfVisible();
 
         VkPlayerPage.PlaybackState playbackState = vkPlayerPage.detectPlaybackState();
+
+        if (playbackState == VkPlayerPage.PlaybackState.NOT_PLAYING) {
+            vkPlayerPage.clickPlayIfVisible();
+            playbackState = vkPlayerPage.detectPlaybackState();
+        }
 
         Assertions.assertEquals(
                 VkPlayerPage.PlaybackState.PLAYING,
