@@ -31,6 +31,7 @@
 - Appium Server
 
 ## Конфигурация Appium Inspector
+Alchemy
 ```json
 {
   "platformName": "Android",
@@ -38,6 +39,19 @@
   "appium:deviceName": "Pixel_4_API_30",
   "appium:platformVersion": "11",
   "appium:appPackage": "com.ilyin.alchemy",
+  "appium:noReset": true,
+  "appium:autoGrantPermissions": true
+}
+```
+
+VK Video
+```json
+{
+  "platformName": "Android",
+  "appium:automationName": "UiAutomator2",
+  "appium:deviceName": "Pixel_4_API_30",
+  "appium:platformVersion": "11",
+  "appium:appPackage": "com.vk.vkvideo",
   "appium:noReset": true,
   "appium:autoGrantPermissions": true
 }
