@@ -3,21 +3,35 @@ package config;
 import com.codeborne.selenide.WebDriverProvider;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.android.options.UiAutomator2Options;
+import org.jspecify.annotations.NonNull;
 import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.WebDriver;
 
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.time.Duration;
 import java.util.Properties;
 
 public class MobileDriverProvider implements WebDriverProvider {
 
+    private static final ThreadLocal<MobileApp> CURRENT_APP = new ThreadLocal<>();
+
+    public static void setCurrentApp(MobileApp app) {
+        CURRENT_APP.set(app);
+    }
+
+    public static void clearCurrentApp() {
+        CURRENT_APP.remove();
+    }
+
     @Override
-    public WebDriver createDriver(Capabilities capabilities) {
+    public @NonNull WebDriver createDriver(@NonNull Capabilities capabilities) {
         Properties props = loadProperties();
-        MobileApp app = AppResolver.resolve();
+        MobileApp app = CURRENT_APP.get();
+
+        if (app == null) {
+            throw new IllegalStateException("Приложение для запуска не задано. Проверь getApp() в тесте.");
+        }
 
         UiAutomator2Options options = new UiAutomator2Options()
                 .setPlatformName(props.getProperty("platformName"))
@@ -25,6 +39,7 @@ public class MobileDriverProvider implements WebDriverProvider {
                 .setDeviceName(props.getProperty("deviceName"))
                 .setAutomationName(props.getProperty("automationName"))
                 .setAppPackage(app.getAppPackage())
+                .setAppActivity(app.getAppActivity())
                 .setNewCommandTimeout(
                         Duration.ofSeconds(Long.parseLong(props.getProperty("newCommandTimeout", "120")))
                 );
@@ -36,7 +51,7 @@ public class MobileDriverProvider implements WebDriverProvider {
 
         try {
             return new AndroidDriver(
-                    new URL(props.getProperty("appiumUrl")),
+                    new URL(props.getProperty("appiumUrl", "http://127.0.0.1:4723")),
                     options
             );
         } catch (Exception e) {
@@ -45,14 +60,19 @@ public class MobileDriverProvider implements WebDriverProvider {
     }
 
     private Properties loadProperties() {
-        Properties properties = new Properties();
-        try (var is = getClass().getClassLoader().getResourceAsStream("appium.properties")) {
-            if (is == null) {
+        Properties props = new Properties();
+
+        try (InputStream inputStream = MobileDriverProvider.class
+                .getClassLoader()
+                .getResourceAsStream("appium.properties")) {
+
+            if (inputStream == null) {
                 throw new RuntimeException("Файл appium.properties не найден в resources");
             }
-            properties.load(is);
-            return properties;
-        } catch (IOException e) {
+
+            props.load(inputStream);
+            return props;
+        } catch (Exception e) {
             throw new RuntimeException("Не удалось загрузить appium.properties", e);
         }
     }

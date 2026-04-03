@@ -1,5 +1,6 @@
 package tests.alchemy;
 
+import config.MobileApp;
 import core.TestBase;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
@@ -15,6 +16,11 @@ public class AlchemyRewardHintsTest extends TestBase {
     private final AlchemyGamePage gamePage = new AlchemyGamePage();
     private final AlchemyHintsSliderPage hintsSliderPage = new AlchemyHintsSliderPage();
     private final AlchemyRewardAdPage rewardAdPage = new AlchemyRewardAdPage();
+
+    @Override
+    protected MobileApp getApp() {
+        return MobileApp.ALCHEMY;
+    }
 
     @Test
     @DisplayName("Алхимия: получение подсказок за просмотр рекламы")

@@ -2,7 +2,7 @@ package core;
 
 import com.codeborne.selenide.Configuration;
 import com.codeborne.selenide.Selenide;
-import config.AppResolver;
+import config.MobileApp;
 import config.MobileDriverProvider;
 import io.appium.java_client.android.AndroidDriver;
 import org.junit.jupiter.api.AfterEach;
@@ -20,15 +20,19 @@ import static com.codeborne.selenide.WebDriverRunner.hasWebDriverStarted;
 
 public abstract class TestBase {
 
+    protected abstract MobileApp getApp();
+
     @BeforeEach
     void setUp() {
+        MobileDriverProvider.setCurrentApp(getApp());
+
         Configuration.browser = MobileDriverProvider.class.getName();
         Configuration.timeout = 15000;
         Configuration.browserSize = null;
         Configuration.screenshots = true;
         Configuration.savePageSource = false;
 
-        System.out.println("Запуск приложения: " + AppResolver.resolve().getAppPackage());
+        System.out.println("Запуск приложения: " + getApp().getAppPackage());
 
         Selenide.open();
     }
@@ -39,12 +43,13 @@ public abstract class TestBase {
             if (hasWebDriverStarted()) {
                 WebDriver driver = getWebDriver();
                 if (driver instanceof AndroidDriver androidDriver) {
-                    androidDriver.terminateApp(AppResolver.resolve().getAppPackage());
+                    androidDriver.terminateApp(getApp().getAppPackage());
                 }
             }
         } catch (Exception e) {
             System.out.println("Не удалось завершить приложение: " + e.getMessage());
         } finally {
+            MobileDriverProvider.clearCurrentApp();
             Selenide.closeWebDriver();
         }
     }

@@ -1,5 +1,6 @@
 package tests.vk;
 
+import config.MobileApp;
 import core.TestBase;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
@@ -14,6 +15,11 @@ public class VkVideoPlaybackNegativeTest extends TestBase {
     private final CommonPage commonPage = new CommonPage();
     private final VkHomePage vkHomePage = new VkHomePage();
     private final VkPlayerPage vkPlayerPage = new VkPlayerPage();
+
+    @Override
+    protected MobileApp getApp() {
+        return MobileApp.VK_VIDEO;
+    }
 
     @Test
     @DisplayName("VK Видео: видео не воспроизводится без сети")
