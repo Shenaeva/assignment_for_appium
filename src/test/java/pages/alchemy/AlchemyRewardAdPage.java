@@ -14,6 +14,7 @@ public class AlchemyRewardAdPage {
     private static final Duration POLL_INTERVAL = Duration.ofMillis(400);
     private static final Duration AFTER_TRIANGLE_CLICK_PAUSE = Duration.ofMillis(800);
     private static final Duration STABILITY_CHECK_INTERVAL = Duration.ofMillis(250);
+    private static final Duration LOG_INTERVAL = Duration.ofSeconds(2);
 
     private final SelenideElement hintsSliderTitle =
             $(androidUIAutomator("new UiSelector().text(\"Ваши подсказки\")"));
@@ -47,6 +48,16 @@ public class AlchemyRewardAdPage {
                     "/android.view.ViewGroup[1]/android.widget.ImageView"
     );
 
+    // Те же зоны подсказок, по которым у тебя определяется готовность игрового экрана
+    private final SelenideElement hintsAreaPrimary =
+            $(androidUIAutomator("new UiSelector().className(\"android.view.View\").instance(4)"));
+
+    private final SelenideElement hintsAreaSecondary =
+            $(androidUIAutomator("new UiSelector().className(\"android.view.View\").instance(5)"));
+
+    private final SelenideElement hintsAreaTertiary =
+            $(androidUIAutomator("new UiSelector().className(\"android.view.View\").instance(6)"));
+
     public boolean didAdFlowStartWithin(Duration timeout) {
         long deadline = System.currentTimeMillis() + timeout.toMillis();
 
@@ -66,29 +77,65 @@ public class AlchemyRewardAdPage {
 
     public void finishRewardedAdFlow() {
         long deadline = System.currentTimeMillis() + AD_FLOW_TIMEOUT.toMillis();
+        long nextLogAt = System.currentTimeMillis();
 
         while (System.currentTimeMillis() < deadline) {
-            // 1. Приоритетно всегда ищем крестик.
-            // Если он появился - сразу закрываем.
+            if (System.currentTimeMillis() >= nextLogAt) {
+                logCurrentState();
+                nextLogAt = System.currentTimeMillis() + LOG_INTERVAL.toMillis();
+            }
+
+            // 1. Если уже вернулся игровой экран — выходим без дополнительных действий
+            if (isGameScreenBack()) {
+                System.out.println("[AlchemyRewardAdPage] Game screen is back -> finish flow without extra click");
+                return;
+            }
+
+            // 2. Если появился точный крестик — закрываем и выходим
             if (isStableVisible(finalCloseRewardButton)) {
+                System.out.println("[AlchemyRewardAdPage] Found exact final close button -> click");
                 finalCloseRewardButton.click();
                 return;
             }
 
-            // 2. Если крестика нет, но появился точный треугольник - жмем только его.
+            // 3. Если появился точный треугольник — жмем только его
             if (isStableVisible(exactAdTriangleButton)) {
+                System.out.println("[AlchemyRewardAdPage] Found exact triangle button -> click");
                 exactAdTriangleButton.click();
                 sleep(AFTER_TRIANGLE_CLICK_PAUSE);
                 continue;
             }
 
-            // 3. Если ни крестика, ни треугольника нет - ничего не жмем.
+            // 4. Ничего точного не нашли — просто ждем
             sleep(POLL_INTERVAL);
         }
 
         throw new IllegalStateException(
-                "Не удалось завершить rewarded ad flow: не дождались крестика или треугольника " +
-                        "в пределах " + AD_FLOW_TIMEOUT.getSeconds() + " секунд"
+                "Не удалось завершить rewarded ad flow: не дождались точного крестика/треугольника " +
+                        "или возврата на игровой экран в пределах " + AD_FLOW_TIMEOUT.getSeconds() + " секунд"
+        );
+    }
+
+    private boolean isGameScreenBack() {
+        return isVisible(hintsAreaPrimary) || isVisible(hintsAreaSecondary) || isVisible(hintsAreaTertiary);
+    }
+
+    private void logCurrentState() {
+        boolean exactTriangleVisible = isVisible(exactAdTriangleButton);
+        boolean fallbackTriangleVisible = isVisible(adTriangleButton);
+        boolean exactCloseVisible = isVisible(finalCloseRewardButton);
+        boolean fallbackCloseVisible = isVisible(closeRewardButton);
+        boolean rewardTitleVisible = isVisible(rewardReceivedTitle);
+        boolean gameScreenBack = isGameScreenBack();
+
+        System.out.println(
+                "[AlchemyRewardAdPage] state: " +
+                        "rewardTitle=" + rewardTitleVisible +
+                        ", exactTriangle=" + exactTriangleVisible +
+                        ", fallbackTriangle=" + fallbackTriangleVisible +
+                        ", exactClose=" + exactCloseVisible +
+                        ", fallbackClose=" + fallbackCloseVisible +
+                        ", gameScreenBack=" + gameScreenBack
         );
     }
 

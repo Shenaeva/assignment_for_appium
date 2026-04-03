@@ -53,6 +53,18 @@ public class AlchemyRewardHintsTest extends TestBase {
         int sliderAfterCount = hintsSliderPage.getHintsCount();
 
         Assertions.assertEquals(
+                4,
+                gameAfterCount,
+                "После просмотра рекламы количество подсказок на игровом экране должно быть равно 4"
+        );
+
+        Assertions.assertEquals(
+                4,
+                sliderAfterCount,
+                "После просмотра рекламы количество подсказок в слайдере должно быть равно 4"
+        );
+
+        Assertions.assertEquals(
                 gameBeforeCount + 2,
                 gameAfterCount,
                 "Количество подсказок на игровом экране должно увеличиться на 2. Было: "
