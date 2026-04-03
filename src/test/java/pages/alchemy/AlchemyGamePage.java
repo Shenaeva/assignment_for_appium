@@ -2,8 +2,11 @@ package pages.alchemy;
 
 import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.SelenideElement;
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebElement;
 
 import java.time.Duration;
+import java.util.List;
 
 import static com.codeborne.selenide.Selenide.$;
 import static io.appium.java_client.AppiumBy.androidUIAutomator;
@@ -12,40 +15,79 @@ public class AlchemyGamePage {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
-    /**
-     * Кликабельные элементы зоны подсказок.
-     * По твоим данным клик по любому из них открывает слайдер "Ваши подсказки".
-     */
-    public final SelenideElement hintsAreaPrimary =
+    private final SelenideElement hintsAreaPrimary =
             $(androidUIAutomator("new UiSelector().className(\"android.view.View\").instance(4)"));
 
-    public final SelenideElement hintsAreaSecondary =
+    private final SelenideElement hintsAreaSecondary =
             $(androidUIAutomator("new UiSelector().className(\"android.view.View\").instance(5)"));
 
-    public final SelenideElement hintsAreaTertiary =
+    private final SelenideElement hintsAreaTertiary =
             $(androidUIAutomator("new UiSelector().className(\"android.view.View\").instance(6)"));
 
-    /**
-     * Старые локаторы на text(\"2\") оставлены только как справка.
-     * Не использовать для проверок, потому что число 2 встречается и в других местах экрана.
-     */
-    // public final SelenideElement oldHintsCounterPrimary =
-    //         $(androidUIAutomator("new UiSelector().text(\"2\").instance(0)"));
-    //
-    // public final SelenideElement oldHintsCounterSecondary =
-    //         $(androidUIAutomator("new UiSelector().text(\"2\").instance(1)"));
-
     public void openHintsSlider() {
-        if (hintsAreaPrimary.isDisplayed()) {
-            hintsAreaPrimary.shouldBe(Condition.visible, TIMEOUT).click();
-            return;
+        getHintsContainer()
+                .shouldBe(Condition.visible, TIMEOUT)
+                .click();
+    }
+
+    public int getHintsCount() {
+        SelenideElement container = getHintsContainer().shouldBe(Condition.visible, TIMEOUT);
+
+        String ownText = safeTrim(container.getText());
+        if (isInteger(ownText)) {
+            return Integer.parseInt(ownText);
         }
 
-        if (hintsAreaSecondary.isDisplayed()) {
-            hintsAreaSecondary.shouldBe(Condition.visible, TIMEOUT).click();
-            return;
+        List<WebElement> textViews = container.toWebElement()
+                .findElements(By.className("android.widget.TextView"));
+
+        for (WebElement textView : textViews) {
+            String text = safeTrim(textView.getText());
+            if (isInteger(text)) {
+                return Integer.parseInt(text);
+            }
         }
 
-        hintsAreaTertiary.shouldBe(Condition.visible, TIMEOUT).click();
+        throw new IllegalStateException("Не удалось извлечь число подсказок на игровом экране");
+    }
+
+    public void waitUntilReady() {
+        long endTime = System.currentTimeMillis() + Duration.ofSeconds(20).toMillis();
+
+        while (System.currentTimeMillis() < endTime) {
+            if (isDisplayed(hintsAreaPrimary) || isDisplayed(hintsAreaSecondary) || isDisplayed(hintsAreaTertiary)) {
+                return;
+            }
+        }
+
+        throw new IllegalStateException("Не дождались возврата на игровой экран после рекламы");
+    }
+
+    private boolean isDisplayed(SelenideElement element) {
+        try {
+            return element.exists() && element.isDisplayed();
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    private SelenideElement getHintsContainer() {
+        if (hintsAreaPrimary.exists() && hintsAreaPrimary.isDisplayed()) {
+            return hintsAreaPrimary;
+        }
+
+        if (hintsAreaSecondary.exists() && hintsAreaSecondary.isDisplayed()) {
+            return hintsAreaSecondary;
+        }
+
+        return hintsAreaTertiary;
+    }
+
+    private boolean isInteger(String value) {
+        return value != null && value.matches("\\d+");
+    }
+
+    private String safeTrim(String value) {
+        return value == null ? "" : value.trim();
     }
 }

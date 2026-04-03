@@ -27,30 +27,49 @@ public class AlchemyRewardHintsTest extends TestBase {
     void shouldIncreaseHintsAfterRewardedAd() {
         mainMenuPage.clickPlay();
 
+        int gameBeforeCount = gamePage.getHintsCount();
+
         gamePage.openHintsSlider();
         hintsSliderPage.shouldBeOpened();
 
-        int beforeCount = hintsSliderPage.getHintsCount();
+        int sliderBeforeCount = hintsSliderPage.getHintsCount();
 
-        hintsSliderPage.clickWatchAdForHints();
+        Assertions.assertEquals(
+                gameBeforeCount,
+                sliderBeforeCount,
+                "Количество подсказок на игровом экране и в слайдере должно совпадать до просмотра рекламы"
+        );
 
-        rewardAdPage.waitForAdOpened();
-        rewardAdPage.waitForRewardReceivedScreen();
-        rewardAdPage.closeRewardScreen();
+        hintsSliderPage.clickWatchAdUntilFlowStarts(rewardAdPage);
+        rewardAdPage.finishRewardedAdFlow();
 
+        gamePage.waitUntilReady();
+
+        int gameAfterCount = gamePage.getHintsCount();
+
+        gamePage.openHintsSlider();
         hintsSliderPage.shouldBeOpened();
 
-        int afterCount = hintsSliderPage.getHintsCount();
+        int sliderAfterCount = hintsSliderPage.getHintsCount();
 
-        Assertions.assertTrue(
-                afterCount > beforeCount,
-                "Количество подсказок не увеличилось. Было: " + beforeCount + ", стало: " + afterCount
+        Assertions.assertEquals(
+                gameBeforeCount + 2,
+                gameAfterCount,
+                "Количество подсказок на игровом экране должно увеличиться на 2. Было: "
+                        + gameBeforeCount + ", стало: " + gameAfterCount
         );
 
         Assertions.assertEquals(
-                4,
-                afterCount,
-                "После rewarded ad количество подсказок должно быть равно 4, но стало: " + afterCount
+                sliderBeforeCount + 2,
+                sliderAfterCount,
+                "Количество подсказок в слайдере должно увеличиться на 2. Было: "
+                        + sliderBeforeCount + ", стало: " + sliderAfterCount
+        );
+
+        Assertions.assertEquals(
+                gameAfterCount,
+                sliderAfterCount,
+                "Количество подсказок на игровом экране и в слайдере должно совпадать после просмотра рекламы"
         );
     }
 }
